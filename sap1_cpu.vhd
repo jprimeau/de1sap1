@@ -8,6 +8,7 @@ entity sap1_cpu is
         clock   : in std_logic;
         reset   : in std_logic;
 
+        halt    : out std_logic;
         p0_out  : out std_logic_vector(7 downto 0)
     );
 end entity sap1_cpu;
@@ -76,10 +77,10 @@ architecture microcoded of sap1_cpu is
     signal con      : std_logic_vector(12 downto 0) := (others => '0');
     
     procedure full_adder(
-        a        : in std_logic_vector(7 downto 0);
-        b        : in std_logic_vector(7 downto 0);
+        a        : in t_data;
+        b        : in t_data;
         cin      : in std_logic;
-        q        : out std_logic_vector(7 downto 0);
+        q        : out t_data;
         cout     : out std_logic
     ) is
         variable c1, c2, c3, c4, c5, c6, c7 : std_logic;
@@ -104,6 +105,7 @@ architecture microcoded of sap1_cpu is
 
 begin
 
+    halt <= con(HLT);
     p0_out <= O_reg;
     
     run:
@@ -221,7 +223,7 @@ begin
 
     arithmetic_logic_unit:
     process (clk)
-        variable a, b, q : std_logic_vector(7 downto 0);
+        variable a, b, q : t_data;
         variable cin, cout : std_logic;
     begin
         if con(Eu) = '1' then

@@ -1,25 +1,20 @@
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.std_logic_arith.all;
 use ieee.std_logic_unsigned.all;
 
 entity sap1_cpu is
     port (
-        clk     : in std_logic;
+        clock   : in std_logic;
         reset   : in std_logic;
-        
-        pc_out  : out std_logic_vector(3 downto 0);
-        mar_out  : out std_logic_vector(3 downto 0);
-        acc_out  : out std_logic_vector(7 downto 0);
-        b_out  : out std_logic_vector(7 downto 0);
-        i_out  : out std_logic_vector(7 downto 0);
-        o_out  : out std_logic_vector(7 downto 0);
-        con_out : out std_logic_vector(11 downto 0);
-        bus_out : out std_logic_vector(7 downto 0);
-        op_out : out integer
+
+        p0_out  : out std_logic_vector(7 downto 0)
     );
 end entity sap1_cpu;
 
 architecture microcoded of sap1_cpu is
+
+    signal clk  : std_logic;
 
     subtype t_address is std_logic_vector(3 downto 0);
     subtype t_data is std_logic_vector(7 downto 0);
@@ -44,7 +39,7 @@ architecture microcoded of sap1_cpu is
          15=> x"FF" );
     
     type t_cpu_state is (S1, S2, S3, S4, S5, S6, SX);
-    signal ns, ps : t_cpu_state;
+    signal ns, ps   : t_cpu_state;
 
     signal ACC_reg  : t_data;
     signal B_reg    : t_data;
@@ -55,13 +50,14 @@ architecture microcoded of sap1_cpu is
     
     signal w_bus    : t_data;
     
-    signal op_code  : integer;
+    subtype t_opcode is std_logic_vector(3 downto 0);
+    signal op_code  : t_opcode;
     
-    constant iLDA   : integer := 16#0#;
-    constant iADD   : integer := 16#1#;
-    constant iSUB   : integer := 16#2#;
-    constant iOUT   : integer := 16#E#;
-    constant iHLT   : integer := 16#F#;
+    constant iLDA   : t_opcode := x"0";
+    constant iADD   : t_opcode := x"1";
+    constant iSUB   : t_opcode := x"2";
+    constant iOUT   : t_opcode := x"E";
+    constant iHLT   : t_opcode := x"F";
     
     constant Cp     : integer := 00;
     constant Ep     : integer := 01;
@@ -75,21 +71,27 @@ architecture microcoded of sap1_cpu is
     constant Su     : integer := 09;
     constant Lb     : integer := 10;
     constant Lo     : integer := 11;
-    constant HALT   : integer := 12;
+    constant HLT    : integer := 12;
    
-    signal con       : std_logic_vector(11 downto 0) := (others => '0');
+    signal con      : std_logic_vector(12 downto 0) := (others => '0');
 
 begin
 
-    pc_out <= PC_reg;
-    mar_out <= MAR_reg;
-    acc_out <= ACC_reg;
-    b_out <= B_reg;
-    i_out <= I_reg;
-    o_out <= O_reg;
-    con_out <= con;
-    bus_out <= w_bus;
-    op_out <= op_code;
+    p0_out <= O_reg;
+    
+    run:
+    process (clock)
+    begin
+        if reset = '1' then
+            clk <= '0';
+        else
+            if con(HLT) = '1' then
+                clk <= '0';
+            else
+                clk <= clock;
+            end if;
+        end if;
+    end process run;
 
     program_counter:
     process (clk)
@@ -170,24 +172,39 @@ begin
             end if;
         end if;
         if con(Ei) = '1' then
-            w_bus(3 downto 0) <= I_reg(3 downto 0);
-            op_code <= conv_integer(I_reg(7 downto 4));
+            w_bus <= I_reg;
         else
             w_bus <= (others => 'Z');
         end if;
     end process I_register;
     
+    op_code <= I_reg(7 downto 4);
+
     O_register:
     process (clk)
     begin
         if reset = '1' then
-            O_reg <= (others => '1');
+            O_reg <= (others => '0');
         elsif clk'event and clk = '0' then
             if con(Lo) = '1' then
                 O_reg <= w_bus;
             end if;
         end if;
     end process O_register;
+    
+    arithmetic_logic_unit:
+    process (clk)
+    begin
+        if con(Eu) = '1' then
+            if con(Su) = '0' then
+                w_bus <= unsigned(ACC_reg) + unsigned(B_reg);
+            else
+                w_bus <= unsigned(ACC_reg) - unsigned(B_reg);
+            end if;
+        else
+            w_bus <= (others => 'Z');
+        end if;
+   end process arithmetic_logic_unit;
     
     cpu_state_machine_reg:
     process (clk)
@@ -224,6 +241,8 @@ begin
 			elsif op_code = iOUT then
                 con(Ea) <= '1';
                 con(Lo) <= '1';
+			elsif op_code = iHLT then
+                con(HLT) <= '1';
 			end if;
 		when S5 =>
             ns <= S1;

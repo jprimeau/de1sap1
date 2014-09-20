@@ -6,22 +6,63 @@ entity de1_sap1 is
     port (
         CLOCK_50    : in std_logic;
         SW          : in std_logic_vector(9 downto 0);
-        LEDG        : out std_logic_vector(7 downto 0)
+        LEDR        : out std_logic_vector(9 downto 0);
+        LEDG        : out std_logic_vector(7 downto 0);
+        HEX0        : out std_logic_vector(0 to 6);
+        HEX1        : out std_logic_vector(0 to 6);
+        HEX2        : out std_logic_vector(0 to 6);
+        HEX3        : out std_logic_vector(0 to 6)
     );
     
 end de1_sap1;
 
 architecture rtl of de1_sap1 is
 
-signal clk_1hz          : std_logic;
-signal reset            : std_logic;
-signal clk              : std_logic;
-signal counter_1hz      : std_logic_vector(25 downto 0);
-signal p0_out           : std_logic_vector(7 downto 0);
+    signal clk_1hz          : std_logic;
+    signal reset            : std_logic;
+    signal counter_1hz      : std_logic_vector(25 downto 0);
+    signal p0_out           : std_logic_vector(7 downto 0);
+    
+    -- Converts hex nibble to 7-segment (sinthesizable).
+    -- Segments ordered as "GFEDCBA"; '0' is ON, '1' is OFF
+    function nibble_to_7seg(nibble : std_logic_vector(3 downto 0))
+                            return std_logic_vector is
+    begin
+        case nibble is
+        when X"0"       => return "0000001";
+        when X"1"       => return "1001111";
+        when X"2"       => return "0010010";
+        when X"3"       => return "0000110";
+        when X"4"       => return "1001100";
+        when X"5"       => return "0100100";
+        when X"6"       => return "0100000";
+        when X"7"       => return "0001111";
+        when X"8"       => return "0000000";
+        when X"9"       => return "0000100";
+        when X"a"       => return "0001000";
+        when X"b"       => return "1100000";
+        when X"c"       => return "0110001";
+        when X"d"       => return "1000010";
+        when X"e"       => return "0110000";
+        when X"f"       => return "0111000";
+        when others     => return "0111111"; -- can't happen
+        end case;
+    end function nibble_to_7seg;
 
 begin
 
     reset <= not SW(9);
+    
+    LEDR(9) <= SW(9);
+    LEDR(8 downto 1) <= (others => '0');
+    LEDR(0) <= clk_1hz;
+    
+    LEDG <= p0_out;
+    
+    HEX0 <= nibble_to_7seg(p0_out(3 downto 0));
+    HEX1 <= nibble_to_7seg(p0_out(7 downto  4));
+    HEX2 <= (others => '1');
+    HEX3 <= (others => '1');
 
     -- Generate a 1Hz clock.
     process(CLOCK_50)
@@ -43,12 +84,10 @@ begin
 
     soc: entity work.sap1_cpu
     port map (
-        clk     => clk_1hz,
+        clock   => clk_1hz,
         reset   => reset,
         
-        pc_out  => open
+        p0_out  => p0_out
     );
-    
-    LEDG <= p0_out;
 
 end architecture rtl;

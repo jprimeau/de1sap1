@@ -1,3 +1,6 @@
+-- DESCRIPTION: SAP-1 - DE1
+-- AUTHOR: Jonathan Primeau
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_unsigned.all;
@@ -6,6 +9,7 @@ entity de1_sap1 is
     port (
         CLOCK_50    : in std_logic;
         SW          : in std_logic_vector(9 downto 0);
+        
         LEDR        : out std_logic_vector(9 downto 0);
         LEDG        : out std_logic_vector(7 downto 0);
         HEX0        : out std_logic_vector(0 to 6);
@@ -27,10 +31,13 @@ architecture rtl of de1_sap1 is
     signal halt             : std_logic;
     signal p0_out           : std_logic_vector(7 downto 0);
     
-    -- Converts hex nibble to 7-segment (sinthesizable).
+    -- Converts hex nibble to 7-segment.
     -- Segments ordered as "GFEDCBA"; '0' is ON, '1' is OFF
-    function nibble_to_7seg(nibble : std_logic_vector(3 downto 0))
-                            return std_logic_vector is
+    function nibble_to_7seg(
+        nibble : std_logic_vector(3 downto 0)
+    )
+        return std_logic_vector
+    is
     begin
         case nibble is
         when X"0"       => return "0000001";

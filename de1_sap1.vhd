@@ -46,7 +46,7 @@ begin
         clk     => clk_1hz,
         reset   => reset,
         
-        p0_out  => p0_out
+        pc_out  => open
     );
     
     LEDG <= p0_out;

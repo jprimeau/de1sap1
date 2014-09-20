@@ -18,9 +18,12 @@ end de1_sap1;
 
 architecture rtl of de1_sap1 is
 
-    signal clk_1hz          : std_logic;
     signal reset            : std_logic;
+    signal clk_1hz          : std_logic;
     signal counter_1hz      : std_logic_vector(25 downto 0);
+    signal clk_10hz         : std_logic;
+    signal counter_10hz     : std_logic_vector(25 downto 0);
+    signal cpu_clk          : std_logic;
     signal p0_out           : std_logic_vector(7 downto 0);
     
     -- Converts hex nibble to 7-segment (sinthesizable).
@@ -55,7 +58,7 @@ begin
     
     LEDR(9) <= SW(9);
     LEDR(8 downto 1) <= (others => '0');
-    LEDR(0) <= clk_1hz;
+    LEDR(0) <= cpu_clk;
     
     LEDG <= p0_out;
     
@@ -63,6 +66,8 @@ begin
     HEX1 <= nibble_to_7seg(p0_out(7 downto  4));
     HEX2 <= (others => '1');
     HEX3 <= (others => '1');
+    
+    cpu_clk <= clk_1hz when SW(0) = '0' else clk_10hz;
 
     -- Generate a 1Hz clock.
     process(CLOCK_50)
@@ -81,10 +86,28 @@ begin
             end if;
         end if;
     end process;
+    
+    -- Generate a 10Hz clock.
+    process(CLOCK_50)
+    begin
+        if CLOCK_50'event and CLOCK_50 = '1' then
+            if reset = '1' then
+                clk_10hz <= '0';
+                counter_10hz <= (others => '0');
+            else
+                if conv_integer(counter_10hz) = 5000000 then
+                    counter_10hz <= (others => '0');
+                    clk_10hz <= not clk_10hz;
+                else
+                    counter_10hz <= counter_10hz + 1;
+                end if;
+            end if;
+        end if;
+    end process;
 
     soc: entity work.sap1_cpu
     port map (
-        clock   => clk_1hz,
+        clock   => cpu_clk,
         reset   => reset,
         
         p0_out  => p0_out

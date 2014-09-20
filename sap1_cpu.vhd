@@ -74,6 +74,33 @@ architecture microcoded of sap1_cpu is
     constant HLT    : integer := 12;
    
     signal con      : std_logic_vector(12 downto 0) := (others => '0');
+    
+    procedure full_adder(
+        a        : in std_logic_vector(7 downto 0);
+        b        : in std_logic_vector(7 downto 0);
+        cin      : in std_logic;
+        q        : out std_logic_vector(7 downto 0);
+        cout     : out std_logic
+    ) is
+        variable c1, c2, c3, c4, c5, c6, c7 : std_logic;
+    begin
+        c1 := (a(0) and b(0)) or (a(0) and cin) or (b(0) and cin);
+        c2 := (a(1) and b(1)) or (a(1) and c1) or (b(1) and c1);
+        c3 := (a(2) and b(2)) or (a(2) and c2) or (b(2) and c2);
+        c4 := (a(3) and b(3)) or (a(3) and c3) or (b(3) and c3);
+        c5 := (a(4) and b(4)) or (a(4) and c4) or (b(4) and c4);
+        c6 := (a(5) and b(5)) or (a(5) and c5) or (b(5) and c5);
+        c7 := (a(6) and b(6)) or (a(6) and c6) or (b(6) and c6);
+        cout := (a(7) and b(7)) or (a(7) and c7) or (b(7) and c7);
+        q(0) := a(0) xor b(0) xor cin;
+        q(1) := a(1) xor b(1) xor c1;
+        q(2) := a(2) xor b(2) xor c2;
+        q(3) := a(3) xor b(3) xor c3;
+        q(4) := a(4) xor b(4) xor c4;
+        q(5) := a(5) xor b(5) xor c5;
+        q(6) := a(6) xor b(6) xor c6;
+        q(7) := a(7) xor b(7) xor c7;
+    end full_adder;
 
 begin
 
@@ -191,16 +218,25 @@ begin
             end if;
         end if;
     end process O_register;
-    
+
     arithmetic_logic_unit:
     process (clk)
+        variable a, b, q : std_logic_vector(7 downto 0);
+        variable cin, cout : std_logic;
     begin
         if con(Eu) = '1' then
             if con(Su) = '0' then
-                w_bus <= unsigned(ACC_reg) + unsigned(B_reg);
+                cin := '0';
+                a := ACC_reg;
+                b := B_reg;
+                full_adder(a, b, cin, q, cout);
             else
-                w_bus <= unsigned(ACC_reg) - unsigned(B_reg);
+                cin := '1';
+                a := ACC_reg;
+                b := not B_reg;
+                full_adder(a, b, cin, q, cout);
             end if;
+            w_bus <= q;
         else
             w_bus <= (others => 'Z');
         end if;
